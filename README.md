@@ -96,6 +96,36 @@ This ensures sentiment informs, but does not dominate, quantitative evidence.
 
 ---
 
+## ⚙️ How it works
+
+```mermaid
+flowchart LR
+    D[Data Collection Agent<br/>prices + news headlines] --> F[Forecasting Agent<br/>ARIMA, Prophet, LSTM,<br/>random walk, SES]
+    D --> S[Sentiment Agent<br/>TextBlob, optional FinBERT]
+    F -->|composite score picks a model| C{Decision Agent}
+    S -->|adjusts the threshold ±10%| C
+    C --> A([buy / sell / hold<br/>+ confidence])
+    C --> E[Explanation Agent<br/>LLM explains, never decides]
+    M[(MCP shared context:<br/>every intermediate state logged)] -.- F & S & C & E
+```
+
+## ▶️ Run it
+
+```bash
+pip install -r requirements.txt
+jupyter notebook notebook/TRADI_WIN_MCP_MultiAgent_Thesis.ipynb
+```
+
+Prices come from Yahoo Finance (`yfinance`), so no key is needed for them. News sentiment uses
+NewsAPI (`NEWS_API_KEY`) and the explanation agent uses the OpenAI API (`OPENAI_API_KEY`); the notebook asks for both if they aren't set. Prophet
+needs a working CmdStan backend: if it fails to load, install `cmdstanpy` and run
+`cmdstanpy.install_cmdstan()`.
+
+## 🧰 Stack
+
+Python, statsmodels (ARIMA, SES), Prophet, TensorFlow/Keras (LSTM), TextBlob, Transformers (FinBERT),
+yfinance, NewsAPI, OpenAI API, pandas, Streamlit.
+
 ## 🖥️ Interactive Dashboard (Research Demonstration)
 
 An interactive **Streamlit dashboard** was developed to visualize, inspect, and stress-test the system’s behavior.
@@ -133,7 +163,7 @@ An interactive **Streamlit dashboard** was developed to visualize, inspect, and 
 ## 📂 Repository Structure
 
 ```
-Tradi-Win-Explainable-Trading-Agents/
+tradiwin-explainable-trading-agents/
 ├── notebook/
 │   └── TRADI_WIN_MCP_MultiAgent_Thesis.ipynb   # Full research implementation
 ├── screenshots/                               # Dashboard screenshots
@@ -163,6 +193,18 @@ Using **Ethereum (ETH)** daily data
 - Result: **Definitive trading recommendation**
 
 Statistical validation includes **Diebold–Mariano tests** confirming model superiority.
+These results, and the methodology behind them, are reported in [`Thesis.pdf`](./Thesis.pdf).
+
+### Reproducibility status (honest note)
+
+The notebook's saved outputs are from a later rerun (BTC, 2025-10-29), and in that run **every
+forecaster failed**: ARIMA and the LSTM raised array-shape errors (`shapes (9,0) (9,)`), consistent
+with an empty feature column from the data fetch, and Prophet failed to load its Stan backend. The
+decision agent then did the safe thing, **hold, with 0% confidence**, because no forecast cleared the
+threshold. That fail-safe is the system working as designed. The weak point is that the pipeline
+still reported "completed successfully": a run where every model failed should be flagged as an error,
+not a decision. Fixing the data step and making total model failure a hard error are the first items
+in the next-steps list below.
 
 ---
 
@@ -180,6 +222,8 @@ The system is designed to support **review, compliance, and governance**.
 
 ## 🚀 Future Extensions
 
+- Fix the data step that left the forecasters with empty inputs, and treat "every model failed" as an
+  error instead of a hold decision
 - Modular Python core package  
 - Full Streamlit deployment  
 - Multi-asset portfolio extension  
